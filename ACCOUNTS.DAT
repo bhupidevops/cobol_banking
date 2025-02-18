@@ -1,0 +1,163 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. BANKING-SYSTEM.
+       AUTHOR. EXPERT-COBOL-PROGRAMMER.
+       DATE-WRITTEN. 2023-10-01.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT ACCOUNT-FILE ASSIGN TO "ACCOUNTS.DAT"
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS ACCOUNT-NUMBER
+               FILE STATUS IS FILE-STATUS.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD  ACCOUNT-FILE.
+       01  ACCOUNT-RECORD.
+           05  ACCOUNT-NUMBER        PIC 9(10).
+           05  ACCOUNT-HOLDER-NAME   PIC X(50).
+           05  ACCOUNT-BALANCE       PIC 9(10)V99.
+           05  ACCOUNT-STATUS        PIC X(10).
+               88  ACTIVE-ACCOUNT    VALUE "ACTIVE".
+               88  CLOSED-ACCOUNT    VALUE "CLOSED".
+
+       WORKING-STORAGE SECTION.
+       01  FILE-STATUS               PIC XX.
+           88  FILE-SUCCESS          VALUE "00".
+           88  FILE-NOT-FOUND         VALUE "35".
+
+       01  USER-CHOICE               PIC 9.
+           88  CREATE-ACCOUNT         VALUE 1.
+           88  DEPOSIT-MONEY          VALUE 2.
+           88  WITHDRAW-MONEY         VALUE 3.
+           88  CHECK-BALANCE          VALUE 4.
+           88  EXIT-PROGRAM           VALUE 5.
+
+       01  TEMP-ACCOUNT-NUMBER       PIC 9(10).
+       01  TEMP-AMOUNT               PIC 9(10)V99.
+       01  TEMP-NAME                 PIC X(50).
+
+       01  ERROR-MESSAGE             PIC X(50).
+       01  SUCCESS-MESSAGE           PIC X(50).
+
+       PROCEDURE DIVISION.
+       MAIN-PROCEDURE.
+           PERFORM OPEN-FILE.
+           PERFORM DISPLAY-MENU UNTIL EXIT-PROGRAM.
+           PERFORM CLOSE-FILE.
+           STOP RUN.
+
+       OPEN-FILE.
+           OPEN I-O ACCOUNT-FILE.
+           IF NOT FILE-SUCCESS
+               DISPLAY "ERROR: UNABLE TO OPEN ACCOUNT FILE."
+               STOP RUN.
+
+       CLOSE-FILE.
+           CLOSE ACCOUNT-FILE.
+
+       DISPLAY-MENU.
+           DISPLAY "BANKING SYSTEM MENU".
+           DISPLAY "1. CREATE ACCOUNT".
+           DISPLAY "2. DEPOSIT MONEY".
+           DISPLAY "3. WITHDRAW MONEY".
+           DISPLAY "4. CHECK BALANCE".
+           DISPLAY "5. EXIT".
+           ACCEPT USER-CHOICE.
+
+           EVALUATE TRUE
+               WHEN CREATE-ACCOUNT
+                   PERFORM CREATE-ACCOUNT-PROCESS
+               WHEN DEPOSIT-MONEY
+                   PERFORM DEPOSIT-MONEY-PROCESS
+               WHEN WITHDRAW-MONEY
+                   PERFORM WITHDRAW-MONEY-PROCESS
+               WHEN CHECK-BALANCE
+                   PERFORM CHECK-BALANCE-PROCESS
+               WHEN EXIT-PROGRAM
+                   DISPLAY "THANK YOU FOR USING THE BANKING SYSTEM."
+               WHEN OTHER
+                   DISPLAY "INVALID CHOICE. PLEASE TRY AGAIN."
+           END-EVALUATE.
+
+       CREATE-ACCOUNT-PROCESS.
+           DISPLAY "ENTER ACCOUNT NUMBER: ".
+           ACCEPT TEMP-ACCOUNT-NUMBER.
+           DISPLAY "ENTER ACCOUNT HOLDER NAME: ".
+           ACCEPT TEMP-NAME.
+           DISPLAY "ENTER INITIAL DEPOSIT AMOUNT: ".
+           ACCEPT TEMP-AMOUNT.
+
+           MOVE TEMP-ACCOUNT-NUMBER TO ACCOUNT-NUMBER.
+           MOVE TEMP-NAME TO ACCOUNT-HOLDER-NAME.
+           MOVE TEMP-AMOUNT TO ACCOUNT-BALANCE.
+           MOVE "ACTIVE" TO ACCOUNT-STATUS.
+
+           WRITE ACCOUNT-RECORD
+               INVALID KEY
+                   DISPLAY "ERROR: ACCOUNT ALREADY EXISTS."
+               NOT INVALID KEY
+                   DISPLAY "ACCOUNT CREATED SUCCESSFULLY."
+           END-WRITE.
+
+       DEPOSIT-MONEY-PROCESS.
+           DISPLAY "ENTER ACCOUNT NUMBER: ".
+           ACCEPT TEMP-ACCOUNT-NUMBER.
+           DISPLAY "ENTER DEPOSIT AMOUNT: ".
+           ACCEPT TEMP-AMOUNT.
+
+           MOVE TEMP-ACCOUNT-NUMBER TO ACCOUNT-NUMBER.
+           READ ACCOUNT-FILE
+               INVALID KEY
+                   DISPLAY "ERROR: ACCOUNT NOT FOUND."
+               NOT INVALID KEY
+                   IF ACTIVE-ACCOUNT
+                       ADD TEMP-AMOUNT TO ACCOUNT-BALANCE
+                       REWRITE ACCOUNT-RECORD
+                           DISPLAY "DEPOSIT SUCCESSFUL."
+                   ELSE
+                       DISPLAY "ERROR: ACCOUNT IS CLOSED."
+                   END-IF
+           END-READ.
+
+       WITHDRAW-MONEY-PROCESS.
+           DISPLAY "ENTER ACCOUNT NUMBER: ".
+           ACCEPT TEMP-ACCOUNT-NUMBER.
+           DISPLAY "ENTER WITHDRAW AMOUNT: ".
+           ACCEPT TEMP-AMOUNT.
+
+           MOVE TEMP-ACCOUNT-NUMBER TO ACCOUNT-NUMBER.
+           READ ACCOUNT-FILE
+               INVALID KEY
+                   DISPLAY "ERROR: ACCOUNT NOT FOUND."
+               NOT INVALID KEY
+                   IF ACTIVE-ACCOUNT
+                       IF ACCOUNT-BALANCE >= TEMP-AMOUNT
+                           SUBTRACT TEMP-AMOUNT FROM ACCOUNT-BALANCE
+                           REWRITE ACCOUNT-RECORD
+                               DISPLAY "WITHDRAWAL SUCCESSFUL."
+                       ELSE
+                           DISPLAY "ERROR: INSUFFICIENT FUNDS."
+                       END-IF
+                   ELSE
+                       DISPLAY "ERROR: ACCOUNT IS CLOSED."
+                   END-IF
+           END-READ.
+
+       CHECK-BALANCE-PROCESS.
+           DISPLAY "ENTER ACCOUNT NUMBER: ".
+           ACCEPT TEMP-ACCOUNT-NUMBER.
+
+           MOVE TEMP-ACCOUNT-NUMBER TO ACCOUNT-NUMBER.
+           READ ACCOUNT-FILE
+               INVALID KEY
+                   DISPLAY "ERROR: ACCOUNT NOT FOUND."
+               NOT INVALID KEY
+                   IF ACTIVE-ACCOUNT
+                       DISPLAY "ACCOUNT BALANCE: " ACCOUNT-BALANCE
+                   ELSE
+                       DISPLAY "ERROR: ACCOUNT IS CLOSED."
+                   END-IF
+           END-READ.
